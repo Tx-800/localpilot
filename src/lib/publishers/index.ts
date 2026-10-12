@@ -3,6 +3,8 @@ import { env } from '@/lib/env';
 import type { BusinessCredentials, BusinessProfile, ContentItem } from '@/lib/types';
 import { publishToInstagram } from './meta';
 import { publishToGoogleBusiness } from './google';
+import { composeGoogleText, composeInstagramCaption } from '@/lib/captions';
+import { googleAccessToken } from '@/lib/google-oauth';
 
 export interface PublishOutcome {
   anySuccess: boolean;
@@ -19,7 +21,8 @@ export async function publishToChannels(
   creds: BusinessCredentials | null,
   item: ContentItem,
 ): Promise<PublishOutcome> {
-  const caption = item.generated_caption;
+  const instagramCaption = composeInstagramCaption(item.generated_caption, item.hashtags ?? []);
+  const googleText = composeGoogleText(item.gbp_caption ?? '', item.generated_caption);
   const imageUrl = item.generated_image_url!;
 
   if (env.publishMode() === 'mock') {
@@ -41,21 +44,23 @@ export async function publishToChannels(
           igUserId: business.instagram_page_id!,
           accessToken: creds.instagram_access_token!,
           imageUrl,
-          caption,
+          caption: instagramCaption,
         }),
     });
   }
 
-  if (business.google_gbp_location_id && creds?.google_gbp_token) {
+  if (business.google_gbp_location_id && (creds?.google_refresh_token || creds?.google_gbp_token)) {
     jobs.push({
       channel: 'google_business',
       run: () =>
-        publishToGoogleBusiness({
-          locationName: business.google_gbp_location_id!,
-          accessToken: creds.google_gbp_token!,
-          imageUrl,
-          caption,
-        }),
+        googleAccessToken(creds).then((accessToken) =>
+          publishToGoogleBusiness({
+            locationName: business.google_gbp_location_id!,
+            accessToken,
+            imageUrl,
+            caption: googleText,
+          }),
+        ),
     });
   }
 

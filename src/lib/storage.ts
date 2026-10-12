@@ -6,17 +6,21 @@ export const IMAGE_BUCKET = 'content-images';
 
 export type ImageSource =
   | { kind: 'base64'; data: string; contentType: string }
+  | { kind: 'bytes'; data: Uint8Array; contentType: string }
   | { kind: 'url'; url: string };
 
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
-/** Copy a provider image into the public bucket and return its permanent URL. */
+/** Copy a provider (or user-uploaded) image into the public bucket and return its permanent URL. */
 export async function persistImage(src: ImageSource, businessId: string): Promise<string> {
   let bytes: Uint8Array;
   let contentType: string;
 
   if (src.kind === 'base64') {
     bytes = Uint8Array.from(Buffer.from(src.data, 'base64'));
+    contentType = src.contentType;
+  } else if (src.kind === 'bytes') {
+    bytes = src.data;
     contentType = src.contentType;
   } else {
     const res = await fetch(src.url, { signal: AbortSignal.timeout(30_000) });

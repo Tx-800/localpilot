@@ -44,6 +44,11 @@ export const env = {
   /** Set ALLOW_SIGNUP=false to hide and refuse self sign-up (pair with Supabase's "Allow new users to sign up" off). */
   allowSignup: () => process.env.ALLOW_SIGNUP?.trim().toLowerCase() !== 'false',
 
+  /** Google OAuth client (Google Cloud → Credentials → OAuth client ID, type "Web application"). */
+  googleClientId: () => process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
+  googleClientSecret: () => process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '',
+  googleOAuthEnabled: () => !!(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()),
+
   publishMode: () => (process.env.PUBLISH_MODE ?? 'mock') as 'mock' | 'live',
   metaGraphVersion: () => process.env.META_GRAPH_VERSION ?? 'v21.0',
 };

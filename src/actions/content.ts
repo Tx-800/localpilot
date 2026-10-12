@@ -6,9 +6,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, fromDbError, toMessage } from '@/lib/errors';
 import { generateImageUrl } from '@/lib/ai/image';
 import { publishToChannels } from '@/lib/publishers';
+import { rewriteCopyForDraft } from '@/lib/generation';
+import { persistImage } from '@/lib/storage';
+import { composeInstagramCaption, GBP_MAX, INSTAGRAM_MAX, normalizeHashtags } from '@/lib/captions';
 import type { ActionResult, BusinessCredentials, BusinessProfile, ContentItem } from '@/lib/types';
 
-const MAX_CAPTION = 2200; // Instagram limit
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // browser compresses to JPEG well below this
+
+/** Editable text of a draft, as sent from the card. */
+type DraftText = { caption: string; hashtags: string[] | string; gbpCaption: string };
 
 async function sessionClient() {
   const supabase = await createClient();
@@ -23,26 +29,32 @@ function refresh() {
   revalidatePath('/dashboard', 'layout');
 }
 
-function validateCaption(caption: string) {
-  const c = caption.trim();
-  if (!c) throw new AppError('VALIDATION', 'Caption cannot be empty');
-  if (c.length > MAX_CAPTION) throw new AppError('VALIDATION', `Caption exceeds ${MAX_CAPTION} characters`);
-  return c;
+/** Validate + normalise the editable text; returns the DB column values. */
+function validateText(input: DraftText) {
+  const caption = input.caption.trim();
+  const hashtags = normalizeHashtags(input.hashtags);
+  const gbp = input.gbpCaption.trim();
+  if (!caption) throw new AppError('VALIDATION', 'Instagram caption cannot be empty');
+  const igLength = composeInstagramCaption(caption, hashtags).length;
+  if (igLength > INSTAGRAM_MAX) {
+    throw new AppError('VALIDATION', `Instagram caption + hashtags is ${igLength} characters (max ${INSTAGRAM_MAX})`);
+  }
+  if (gbp.length > GBP_MAX) throw new AppError('VALIDATION', `Google text is ${gbp.length} characters (max ${GBP_MAX})`);
+  return { generated_caption: caption, hashtags, gbp_caption: gbp };
 }
 
-/** [Save Changes] — persist edited caption / notes. RLS only allows editing open drafts. */
-export async function saveDraftChanges(input: {
+/** [Save Changes] — persist edited text / notes. RLS only allows editing open drafts. */
+export async function saveDraftChanges(input: DraftText & {
   contentId: string;
-  caption: string;
   adminNotes?: string;
 }): Promise<ActionResult<ContentItem>> {
   try {
     const supabase = await sessionClient();
-    const caption = validateCaption(input.caption);
+    const text = validateText(input);
 
     const { data, error } = await supabase
       .from('content_queue')
-      .update({ generated_caption: caption, admin_notes: input.adminNotes?.trim() || null })
+      .update({ ...text, admin_notes: input.adminNotes?.trim() || null })
       .eq('id', input.contentId)
       .select('*')
       .maybeSingle();
@@ -97,6 +109,78 @@ export async function regenerateImage(input: {
   }
 }
 
+/** Load a draft the signed-in user owns that can still be edited (RLS-scoped). */
+async function loadOpenDraft(supabase: Awaited<ReturnType<typeof sessionClient>>, contentId: string) {
+  const { data: item } = await supabase.from('content_queue').select('*').eq('id', contentId).maybeSingle();
+  if (!item) throw new AppError('NOT_FOUND', 'Draft not found');
+  const current = item as ContentItem;
+  if (!['draft', 'failed'].includes(current.published_status) || current.review_status === 'rejected') {
+    throw new AppError('INVALID_STATE', 'Only open drafts can be changed');
+  }
+  return current;
+}
+
+/** [Rewrite] — AI writes new Instagram text, hashtags and Google text; the image is kept. */
+export async function rewriteCaption(input: { contentId: string }): Promise<ActionResult<ContentItem>> {
+  try {
+    const supabase = await sessionClient();
+    const current = await loadOpenDraft(supabase, input.contentId);
+    const { data: business } = await supabase.from('business_profiles').select('*').eq('id', current.business_id).single();
+
+    const copy = await rewriteCopyForDraft(supabase, business as BusinessProfile, current);
+    const text = validateText({ caption: copy.caption, hashtags: copy.hashtags, gbpCaption: copy.gbpCaption });
+
+    const { data, error } = await supabase
+      .from('content_queue')
+      .update(text)
+      .eq('id', current.id)
+      .select('*')
+      .maybeSingle();
+    if (error) throw fromDbError(error);
+    if (!data) throw new AppError('INVALID_STATE', 'This draft changed while the text was being rewritten');
+
+    refresh();
+    return { ok: true, data: data as ContentItem, message: 'New text written' };
+  } catch (err) {
+    return { ok: false, ...toMessage(err) };
+  }
+}
+
+/**
+ * [Upload] — replace the image with the user's own photo. The browser converts
+ * it to JPEG first (Instagram only accepts JPEG); stored like generated images.
+ */
+export async function uploadDraftImage(formData: FormData): Promise<ActionResult<ContentItem>> {
+  try {
+    const supabase = await sessionClient();
+    const contentId = String(formData.get('contentId') ?? '');
+    const file = formData.get('file');
+    if (!(file instanceof File) || file.size === 0) throw new AppError('VALIDATION', 'Choose an image to upload');
+    if (file.type !== 'image/jpeg') throw new AppError('VALIDATION', 'Image must be a JPEG');
+    if (file.size > MAX_UPLOAD_BYTES) throw new AppError('VALIDATION', 'Image is too large (max 4 MB)');
+
+    const current = await loadOpenDraft(supabase, contentId);
+    const url = await persistImage(
+      { kind: 'bytes', data: new Uint8Array(await file.arrayBuffer()), contentType: 'image/jpeg' },
+      current.business_id,
+    );
+
+    const { data, error } = await supabase
+      .from('content_queue')
+      .update({ generated_image_url: url })
+      .eq('id', current.id)
+      .select('*')
+      .maybeSingle();
+    if (error) throw fromDbError(error);
+    if (!data) throw new AppError('INVALID_STATE', 'This draft can no longer be edited');
+
+    refresh();
+    return { ok: true, data: data as ContentItem, message: 'Image uploaded' };
+  } catch (err) {
+    return { ok: false, ...toMessage(err) };
+  }
+}
+
 /**
  * [Approve & Post Now] — the "increment" action.
  *  1. Save any unsaved caption edits (so what you see is what gets posted)
@@ -107,16 +191,15 @@ export async function regenerateImage(input: {
  */
 export async function approveAndPostNow(input: {
   contentId: string;
-  caption?: string;
+  text?: DraftText;
 }): Promise<ActionResult<ContentItem>> {
   try {
     const supabase = await sessionClient();
 
-    if (input.caption !== undefined) {
-      const caption = validateCaption(input.caption);
+    if (input.text) {
       const { error } = await supabase
         .from('content_queue')
-        .update({ generated_caption: caption })
+        .update(validateText(input.text))
         .eq('id', input.contentId);
       if (error) throw fromDbError(error);
     }

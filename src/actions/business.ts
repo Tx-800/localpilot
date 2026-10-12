@@ -115,18 +115,38 @@ export async function saveBusinessProfile(_prev: BusinessFormState | null, formD
   return { ok: true, data: { id: businessId }, message: 'Client settings saved' };
 }
 
+export type CredentialStatus = { instagram: boolean; google: boolean; googleConnected: boolean };
+
 /** Which secret tokens exist (booleans only — values never leave the server). */
-export async function getCredentialStatus(businessId: string): Promise<{ instagram: boolean; google: boolean }> {
+export async function getCredentialStatus(businessId: string): Promise<CredentialStatus> {
   const supabase = await createClient();
   const { data: owned } = await supabase.from('business_profiles').select('id').eq('id', businessId).maybeSingle();
-  if (!owned) return { instagram: false, google: false };
+  if (!owned) return { instagram: false, google: false, googleConnected: false };
 
   const { data } = await createAdminClient()
     .from('business_credentials')
-    .select('instagram_access_token, google_gbp_token')
+    .select('instagram_access_token, google_gbp_token, google_refresh_token')
     .eq('business_id', businessId)
     .maybeSingle();
-  return { instagram: !!data?.instagram_access_token, google: !!data?.google_gbp_token };
+  return {
+    instagram: !!data?.instagram_access_token,
+    google: !!data?.google_gbp_token,
+    googleConnected: !!data?.google_refresh_token,
+  };
+}
+
+/** [Disconnect Google] — forget the stored Google refresh token for this client. */
+export async function disconnectGoogle(businessId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: owned } = await supabase.from('business_profiles').select('id').eq('id', businessId).maybeSingle();
+  if (!owned) return { ok: false, error: 'Business not found' };
+  const { error } = await createAdminClient()
+    .from('business_credentials')
+    .update({ google_refresh_token: null })
+    .eq('business_id', businessId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/dashboard/settings');
+  return { ok: true, message: 'Google disconnected' };
 }
 
 export async function deleteBusiness(businessId: string): Promise<ActionResult> {

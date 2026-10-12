@@ -25,6 +25,7 @@ export interface BusinessProfile {
 export interface BusinessCredentials {
   business_id: string;
   google_gbp_token: string | null;
+  google_refresh_token: string | null;
   instagram_access_token: string | null;
 }
 
@@ -41,6 +42,8 @@ export interface ContentItem {
   business_id: string;
   scheduled_for: string | null;
   generated_caption: string;
+  hashtags: string[];
+  gbp_caption: string;
   image_prompt: string | null;
   generated_image_url: string | null;
   review_status: ReviewStatus;

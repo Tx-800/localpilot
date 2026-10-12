@@ -8,7 +8,7 @@ import type { ContentItem } from '@/lib/types';
 
 export const metadata: Metadata = { title: 'Published' };
 
-const CHANNEL_LABELS: Record<string, string> = { instagram: 'Instagram', google: 'Google Business', mock: 'Practice' };
+const CHANNEL_LABELS: Record<string, string> = { instagram: 'Instagram', google_business: 'Google Business', mock: 'Practice' };
 
 export default async function PublishedPage() {
   const { supabase } = await requireUser();

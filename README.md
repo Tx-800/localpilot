@@ -90,6 +90,26 @@ Supabase Auth → URL configuration: add `http://localhost:3000/auth/callback` (
 
 ---
 
+### Editing drafts
+
+Each draft card has **Instagram** and **Google** tabs:
+
+* **Instagram** — caption body plus a separate **Hashtags** field (max 30). Hashtags are appended only when posting to Instagram.
+* **Google** — its own hashtag-free text (max 1500 characters). If left empty, the Instagram caption without hashtags is used.
+* **✨ Rewrite** — AI writes new text for both channels, keeping the topic and the image.
+* **Upload** — use your own photo; the browser converts it to JPEG (Instagram requires JPEG) before upload. **New image** generates another AI image from the (editable) image prompt.
+
+### Google Business: "Connect Google"
+
+Google access tokens expire after an hour, so posting uses a stored **refresh token** instead:
+
+1. Google Cloud Console → APIs & Services → Credentials → **Create OAuth client ID** (type *Web application*).
+2. Authorised redirect URI: `https://YOUR-SITE/api/google/callback` (plus `http://localhost:3000/api/google/callback` for local dev).
+3. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (Vercel env vars), redeploy.
+4. Client Settings → **Connect Google**, sign in with the account that manages the business, and fill in the **Google Business location** (`accounts/…/locations/…`).
+
+The Business Profile API must be approved for your Google Cloud project. A pasted access token is still accepted as a fallback.
+
 ## 3. How quota is enforced (and why it's in SQL)
 
 * **Draft generation** — `create_draft` locks the business row and rejects if `published + open drafts ≥ max`. The API route also does a cheap read-only pre-check first so you don't pay for an AI call that will be refused.

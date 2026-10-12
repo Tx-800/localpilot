@@ -4,9 +4,14 @@ import { AppError } from '@/lib/errors';
 import { openaiError } from './openai-errors';
 import { buildCopyUserPrompt, COPY_SYSTEM_PROMPT, type CopyBrief } from './prompts';
 import type { GenerationPlan } from './strategy';
+import { GBP_MAX, INSTAGRAM_MAX, normalizeHashtags, splitTrailingHashtags } from '@/lib/captions';
 
 export interface GeneratedCopy {
+  /** Instagram body, without hashtags. */
   caption: string;
+  hashtags: string[];
+  /** Google Business Profile text (no hashtags). */
+  gbpCaption: string;
   imagePrompt: string;
 }
 
@@ -56,18 +61,29 @@ async function generateWithOpenAI(brief: CopyBrief, plan: GenerationPlan, opts: 
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const raw = json.choices?.[0]?.message?.content ?? '';
 
-  let parsed: { caption?: unknown; image_prompt?: unknown };
+  let parsed: { caption?: unknown; hashtags?: unknown; gbp_caption?: unknown; image_prompt?: unknown };
   try {
     parsed = JSON.parse(raw);
   } catch {
     throw new AppError('PROVIDER_ERROR', 'Text model returned invalid JSON');
   }
 
-  const caption = typeof parsed.caption === 'string' ? parsed.caption.trim() : '';
+  const rawCaption = typeof parsed.caption === 'string' ? parsed.caption.trim() : '';
   const imagePrompt = typeof parsed.image_prompt === 'string' ? parsed.image_prompt.trim() : '';
-  if (!caption || !imagePrompt) throw new AppError('PROVIDER_ERROR', 'Text model returned an incomplete draft');
+  if (!rawCaption || !imagePrompt) throw new AppError('PROVIDER_ERROR', 'Text model returned an incomplete draft');
 
-  return { caption: caption.slice(0, 2200), imagePrompt };
+  // Models occasionally still append hashtags to the caption; move them to the list.
+  const { body, hashtags: inline } = splitTrailingHashtags(rawCaption);
+  const listed = Array.isArray(parsed.hashtags) ? parsed.hashtags.filter((t): t is string => typeof t === 'string') : [];
+  const hashtags = normalizeHashtags([...listed, ...inline]);
+  const gbpCaption = typeof parsed.gbp_caption === 'string' ? parsed.gbp_caption.trim() : '';
+
+  return {
+    caption: body.slice(0, INSTAGRAM_MAX),
+    hashtags,
+    gbpCaption: gbpCaption.slice(0, GBP_MAX),
+    imagePrompt,
+  };
 }
 
 /** True when a 400 is about reasoning_effort itself (unsupported parameter, or e.g. "minimal" not allowed). */
@@ -98,7 +114,7 @@ const MOCK_CTAS = [
 
 function generateMock(b: CopyBrief, plan: GenerationPlan): GeneratedCopy {
   const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
-  const tag = (s: string) => '#' + s.replace(/[^a-z0-9]/gi, '');
+  const tag = (s: string) => '#' + s.replace(/[^\p{L}\p{N}]/gu, '');
   const kw = b.target_keywords.slice(0, 2);
   const caption = [
     pick(MOCK_OPENERS)(b, plan),
@@ -106,15 +122,19 @@ function generateMock(b: CopyBrief, plan: GenerationPlan): GeneratedCopy {
     `Here in ${b.target_location}, we put everything into being your go-to ${b.niche.toLowerCase()}.` +
       (kw.length ? ` Looking for ${kw.join(' or ')}? You're in the right place.` : ''),
     pick(MOCK_CTAS),
-    '',
-    [tag(b.business_name), tag(b.target_location), tag(b.niche), '#SupportLocal', '#ShopLocal']
-      .filter((t) => t.length > 1)
-      .join(' '),
   ].join('\n');
+
+  const hashtags = normalizeHashtags([tag(b.business_name), tag(b.target_location), tag(b.niche), '#SupportLocal', '#ShopLocal']);
+
+  const gbpCaption =
+    `${b.business_name} in ${b.target_location}: ${plan.pillar}. ` +
+    `We're your local ${b.niche.toLowerCase()}` +
+    (kw.length ? `, and a favourite for anyone searching "${kw[0]}"` : '') +
+    `. Visit us this week or message us to learn more.`;
 
   const imagePrompt =
     `Photorealistic photo for a ${b.niche} in ${b.target_location} about ${plan.pillar}: ${plan.visual}. ` +
     `Mood: ${b.brand_voice_style}. No text, no logos.`;
 
-  return { caption, imagePrompt };
+  return { caption, hashtags, gbpCaption, imagePrompt };
 }

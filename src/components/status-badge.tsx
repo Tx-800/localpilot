@@ -21,7 +21,7 @@ const LABELS: Record<string, string> = {
 export function StatusBadge({ review, published }: { review: ReviewStatus; published: PublishedStatus }) {
   const key = published === 'draft' ? review : published;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STYLES[key].pill}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STYLES[key].pill}`}>
       <span className={`size-1.5 rounded-full ${STYLES[key].dot}`} />
       {LABELS[key]}
     </span>

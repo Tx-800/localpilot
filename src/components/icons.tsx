@@ -45,7 +45,10 @@ export const ChevronDownIcon = (p: IconProps) => (
 export const SendIcon = (p: IconProps) => (
   <Svg {...p}><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></Svg>
 );
-export const SaveIcon = (p: IconProps) => (
+export const UploadIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5M12 3v12" /></Svg>
+);
+export const SaveIcon =(p: IconProps) => (
   <Svg {...p}><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M7 3v5h8M7 21v-7h10v7" /></Svg>
 );
 export const InfoIcon = (p: IconProps) => (
