@@ -109,6 +109,13 @@ export function ContentCard({ item, quotaFull }: { item: ContentWithBusiness; qu
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">Last attempt failed: {item.last_error}</p>
         )}
 
+        {item.generation_meta?.pillar && (
+          <p className="text-xs text-ink-500">
+            <span className="font-medium text-ink-700">Pillar:</span> {item.generation_meta.pillar}
+            {item.generation_meta.format && <> · <span className="font-medium text-ink-700">Format:</span> {item.generation_meta.format}</>}
+          </p>
+        )}
+
         {/* Editable caption */}
         <div>
           <div className="mb-1.5 flex items-baseline justify-between">

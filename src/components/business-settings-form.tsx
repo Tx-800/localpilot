@@ -48,6 +48,21 @@ export function BusinessSettingsForm({
         </div>
       </Section>
 
+      {/* Per-business generation strategy */}
+      <Section title="Content strategy" hint="Custom AI instructions for this client. Each new draft rotates to a different pillar, post format and photo composition, and avoids repeating recent posts.">
+        <div className="grid gap-4">
+          <Field label="Content pillars" name="content_pillars" error={fe.content_pillars} hint="One topic per line, up to 15. Drafts cycle through them. Leave empty to use general topics.">
+            <textarea id="content_pillars" name="content_pillars" rows={5} defaultValue={business?.content_pillars.join('\n')} className="input" placeholder={'New seasonal drinks\nOur baristas and their craft\nCustomer reviews and favourites\nWork-friendly space and Wi-Fi\nLocal events in Powai'} />
+          </Field>
+          <Field label="Caption instructions" name="caption_instructions" error={fe.caption_instructions} hint="How captions should be written: language, must-mention details, call to action, words to avoid. Max 2000 characters.">
+            <textarea id="caption_instructions" name="caption_instructions" rows={4} maxLength={2000} defaultValue={business?.caption_instructions} className="input" placeholder="Write in light Hinglish. Always mention we open at 8 am. End with 'Book a table via DM'. Never use the word 'cheap'." />
+          </Field>
+          <Field label="Image style" name="image_style" error={fe.image_style} hint="How pictures should look: colours, props, setting, mood. Max 1000 characters.">
+            <textarea id="image_style" name="image_style" rows={3} maxLength={1000} defaultValue={business?.image_style} className="input" placeholder="Warm earthy tones, terracotta and sage green, wooden tables, plants in the background, soft natural light." />
+          </Field>
+        </div>
+      </Section>
+
       {/* Quota + automation */}
       <Section title="Quota & automation" hint="Hard cap enforced in the database on every draft and publish.">
         <div className="grid gap-4 sm:grid-cols-2">

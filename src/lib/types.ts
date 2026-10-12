@@ -9,6 +9,9 @@ export interface BusinessProfile {
   target_location: string;
   brand_voice_style: string;
   target_keywords: string[];
+  content_pillars: string[];
+  caption_instructions: string;
+  image_style: string;
   max_posts_per_month: number;
   current_month_post_count: number;
   quota_period_start: string; // YYYY-MM-DD
@@ -25,6 +28,14 @@ export interface BusinessCredentials {
   instagram_access_token: string | null;
 }
 
+/** What a draft was built from — read back to rotate the next draft away from it. */
+export interface GenerationMeta {
+  pillar?: string;
+  format?: string;
+  visual?: string;
+  attempts?: number;
+}
+
 export interface ContentItem {
   id: string;
   business_id: string;
@@ -35,6 +46,7 @@ export interface ContentItem {
   review_status: ReviewStatus;
   published_status: PublishedStatus;
   admin_notes: string | null;
+  generation_meta: GenerationMeta;
   external_post_ids: Record<string, string>;
   last_error: string | null;
   quota_period_start: string | null;

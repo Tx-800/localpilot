@@ -1,8 +1,15 @@
 import type { BusinessProfile } from '@/lib/types';
+import type { GenerationPlan } from './strategy';
 
 export type CopyBrief = Pick<
   BusinessProfile,
-  'business_name' | 'niche' | 'target_location' | 'brand_voice_style' | 'target_keywords'
+  | 'business_name'
+  | 'niche'
+  | 'target_location'
+  | 'brand_voice_style'
+  | 'target_keywords'
+  | 'caption_instructions'
+  | 'image_style'
 >;
 
 export const COPY_SYSTEM_PROMPT = `You are a senior social media copywriter for small local businesses.
@@ -12,33 +19,51 @@ Rules:
 - Mention the location naturally once; weave in at most two of the target keywords.
 - 80-180 words for the caption, then a blank line, then 5-8 relevant hashtags (mix of local + niche).
 - End the body with a soft call to action (visit, book, DM, call).
-- The image prompt must describe ONE photorealistic scene with no text, logos, or recognisable people's faces.
+- Follow the business's custom instructions when given; they override these style rules,
+  but never the rule against inventing facts.
+- Every post must be clearly different from the recent posts you are shown: a new opening line,
+  a different hook, different examples and a differently worded call to action.
+- The image prompt must describe ONE photorealistic scene with no text, logos, or recognisable people's faces,
+  using the requested composition and the brand visual style.
 Respond ONLY with JSON: {"caption": string, "image_prompt": string}`;
 
-const ANGLES = [
-  'a behind-the-scenes moment',
-  'a customer favourite',
-  'a seasonal hook relevant to this month',
-  'a quick tip related to the niche',
-  'the people/craft behind the business',
-  'a neighbourhood / community angle',
-];
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
-export function pickAngle(seed = Date.now()): string {
-  return ANGLES[seed % ANGLES.length];
-}
-
-export function buildCopyUserPrompt(b: CopyBrief, angle: string, now = new Date()): string {
+export function buildCopyUserPrompt(
+  b: CopyBrief,
+  plan: GenerationPlan,
+  opts: { retry?: boolean; now?: Date } = {},
+): string {
+  const now = opts.now ?? new Date();
   const month = now.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
-  return [
+
+  const lines = [
     `Business name: ${b.business_name}`,
     `Niche: ${b.niche}`,
     `Location: ${b.target_location}`,
     `Brand voice: ${b.brand_voice_style}`,
     `Target local keywords: ${b.target_keywords.length ? b.target_keywords.join(', ') : '(none provided)'}`,
     `Current month: ${month}`,
-    `Post angle: ${angle}`,
     '',
-    'Write one post.',
-  ].join('\n');
+    `Topic for this post (content pillar): ${plan.pillar}`,
+    `Post format: ${plan.format}`,
+    `Photo composition: ${plan.visual}`,
+  ];
+
+  if (b.caption_instructions.trim()) {
+    lines.push('', 'Custom caption instructions from the business:', b.caption_instructions.trim());
+  }
+  if (b.image_style.trim()) {
+    lines.push('', 'Brand visual style for the image prompt:', b.image_style.trim());
+  }
+  if (plan.recentCaptions.length) {
+    lines.push('', 'Recent posts for this business — do NOT reuse their openings, hooks, phrasing or call to action:');
+    plan.recentCaptions.forEach((c, i) => lines.push(`--- recent post ${i + 1} ---`, clip(c, 320)));
+  }
+  if (opts.retry) {
+    lines.push('', 'Your previous attempt was too similar to a recent post. Take a noticeably different approach.');
+  }
+
+  lines.push('', 'Write one post.');
+  return lines.join('\n');
 }

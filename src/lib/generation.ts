@@ -5,10 +5,12 @@ import { AppError, fromDbError } from '@/lib/errors';
 import { assertDraftCapacity } from '@/lib/quota';
 import { generateCopy } from '@/lib/ai/llm';
 import { generateImageUrl } from '@/lib/ai/image';
+import { isTooSimilar, loadRecentPosts, planNext, withImageStyle } from '@/lib/ai/strategy';
 
 /**
  * Full generation pipeline for one business:
- *   quota pre-check → LLM caption + image prompt → image → create_draft RPC
+ *   quota pre-check → plan (rotate pillar / format / visual away from recent posts)
+ *   → LLM caption + image prompt (retry once if too similar) → image → create_draft RPC
  *
  * `db` is either the user's session client (button) or the admin client (cron).
  * create_draft re-checks quota under a row lock, so concurrent runs are safe.
@@ -20,15 +22,25 @@ export async function generateDraftForBusiness(
 ): Promise<ContentItem> {
   await assertDraftCapacity(db, business);
 
-  const copy = await generateCopy(business);
-  const imageUrl = await generateImageUrl(copy.imagePrompt, business.id);
+  const plan = planNext(business, await loadRecentPosts(db, business.id));
+
+  let copy = await generateCopy(business, plan);
+  let attempts = 1;
+  if (isTooSimilar(copy.caption, plan.recentCaptions)) {
+    copy = await generateCopy(business, plan, { retry: true });
+    attempts = 2;
+  }
+
+  const imagePrompt = withImageStyle(copy.imagePrompt, business.image_style);
+  const imageUrl = await generateImageUrl(imagePrompt, business.id);
 
   const { data, error } = await db.rpc('create_draft', {
     p_business_id: business.id,
     p_caption: copy.caption,
-    p_image_prompt: copy.imagePrompt,
+    p_image_prompt: imagePrompt,
     p_image_url: imageUrl,
     p_scheduled_for: opts.scheduledFor ?? null,
+    p_generation_meta: { pillar: plan.pillar, format: plan.format, visual: plan.visual, attempts },
   });
 
   if (error) throw fromDbError(error);

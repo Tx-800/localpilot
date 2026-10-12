@@ -47,6 +47,13 @@ export async function saveBusinessProfile(_prev: BusinessFormState | null, formD
       .map((k) => k.trim())
       .filter(Boolean)
       .slice(0, 20),
+    content_pillars: str('content_pillars')
+      .split('\n')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 15),
+    caption_instructions: str('caption_instructions'),
+    image_style: str('image_style'),
     max_posts_per_month: Number(str('max_posts_per_month')),
     auto_generate_enabled: formData.get('auto_generate_enabled') === 'on',
     instagram_page_id: str('instagram_page_id') || null,
@@ -62,7 +69,10 @@ export async function saveBusinessProfile(_prev: BusinessFormState | null, formD
   if (!Number.isInteger(values.max_posts_per_month) || values.max_posts_per_month < 0 || values.max_posts_per_month > 1000) {
     fieldErrors.max_posts_per_month = 'Whole number between 0 and 1000';
   }
-  if (values.google_gbp_location_id && !/^accounts\/[^/]+\/locations\/[^/]+$/.test(values.google_gbp_location_id)) {
+  if (values.content_pillars.some((p) => p.length > 120)) fieldErrors.content_pillars = 'Keep each pillar under 120 characters';
+  if (values.caption_instructions.length > 2000) fieldErrors.caption_instructions = 'Max 2000 characters';
+  if (values.image_style.length > 1000) fieldErrors.image_style = 'Max 1000 characters';
+  if (values.google_gbp_location_id &&!/^accounts\/[^/]+\/locations\/[^/]+$/.test(values.google_gbp_location_id)) {
     fieldErrors.google_gbp_location_id = 'Format: accounts/{id}/locations/{id}';
   }
   if (Object.keys(fieldErrors).length) return { ok: false, error: 'Please fix the highlighted fields', fieldErrors };
