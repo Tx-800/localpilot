@@ -23,7 +23,7 @@ export function BusinessSettingsForm({
   const fe: Record<string, string> = (state && !state.ok && state.fieldErrors) || {};
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} className="space-y-8 lg:space-y-10">
       {business && <input type="hidden" name="id" value={business.id} />}
 
       {/* Identity */}
@@ -69,11 +69,11 @@ export function BusinessSettingsForm({
           <Field label="Max posts per month" name="max_posts_per_month" error={fe.max_posts_per_month}>
             <input id="max_posts_per_month" name="max_posts_per_month" type="number" inputMode="numeric" min={0} max={1000} step={1} required defaultValue={business?.max_posts_per_month ?? 12} className="input tabular-nums" />
           </Field>
-          <label className="flex items-start gap-3 rounded-lg border border-ink-200 p-3 sm:mt-6">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 p-3.5 transition-colors hover:border-ink-300 has-[:checked]:border-brand-200 has-[:checked]:bg-brand-50/50 sm:mt-7">
             <input type="checkbox" name="auto_generate_enabled" defaultChecked={business?.auto_generate_enabled ?? false} className="mt-0.5 size-4 accent-brand-600" />
             <span className="text-sm">
               <span className="font-medium">Auto-generate drafts</span>
-              <span className="block text-xs text-ink-500">Scheduled job creates drafts for review. Nothing is ever posted without your approval.</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-ink-500">Scheduled job creates drafts for review. Nothing is ever posted without your approval.</span>
             </span>
           </label>
         </div>
@@ -97,27 +97,34 @@ export function BusinessSettingsForm({
         </div>
       </Section>
 
-      {/* Sticky save bar — always reachable on mobile */}
-      <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-ink-200 bg-ink-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
-        {state && (
-          <p role="status" className={`mr-auto text-sm ${state.ok ? 'text-green-700' : 'text-red-600'}`}>
-            {state.ok ? state.message : state.error}
-          </p>
-        )}
-        <button type="submit" disabled={pending} className="btn-primary">
-          {pending ? 'Saving…' : business ? 'Save settings' : 'Create client'}
-        </button>
+      {/* Sticky save bar — always reachable while scrolling a long form */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-ink-200/80 bg-white/90 px-4 py-3 backdrop-blur sm:bottom-4 sm:mx-0 sm:rounded-2xl sm:border sm:shadow-lift">
+        <div className="flex items-center justify-end gap-3">
+          {state ? (
+            <p role="status" className={`mr-auto text-sm font-medium ${state.ok ? 'text-emerald-700' : 'text-red-600'}`}>
+              {state.ok ? state.message : state.error}
+            </p>
+          ) : (
+            <p className="mr-auto hidden text-sm text-ink-500 sm:block">Changes apply to the next generated draft.</p>
+          )}
+          <button type="submit" disabled={pending} className="btn-primary px-6">
+            {pending ? 'Saving…' : business ? 'Save settings' : 'Create client'}
+          </button>
+        </div>
       </div>
     </form>
   );
 }
 
+/** Settings section: description column on the left (desktop), fields card on the right. */
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="card p-5 sm:p-6">
-      <h2 className="text-base font-semibold">{title}</h2>
-      {hint && <p className="mt-0.5 mb-5 text-sm text-ink-500">{hint}</p>}
-      {children}
+    <section className="grid gap-4 lg:grid-cols-[17rem_1fr] lg:gap-10">
+      <div className="lg:pt-5">
+        <h2 className="text-base font-semibold text-ink-900">{title}</h2>
+        {hint && <p className="mt-1 text-sm leading-relaxed text-ink-500">{hint}</p>}
+      </div>
+      <div className="card p-5 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -141,7 +148,7 @@ function Field({
     <div className={className}>
       <label htmlFor={name} className="label">{label}</label>
       {children}
-      {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : hint ? <p className="mt-1 text-xs text-ink-500">{hint}</p> : null}
+      {error ? <p className="hint font-medium text-red-600">{error}</p> : hint ? <p className="hint">{hint}</p> : null}
     </div>
   );
 }

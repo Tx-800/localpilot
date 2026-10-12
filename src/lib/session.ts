@@ -35,3 +35,10 @@ export const getActiveBusiness = cache(async (): Promise<BusinessProfile | null>
   const id = (await cookies()).get(ACTIVE_BUSINESS_COOKIE)?.value;
   return businesses.find((b) => b.id === id) ?? businesses[0];
 });
+
+/** Name + agency for the signed-in user (shown in the app shell). */
+export const getProfile = cache(async (): Promise<{ full_name: string | null; agency_name: string | null }> => {
+  const { supabase, user } = await requireUser();
+  const { data } = await supabase.from('profiles').select('full_name, agency_name').eq('id', user.id).maybeSingle();
+  return { full_name: data?.full_name ?? null, agency_name: data?.agency_name ?? null };
+});

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PageHeader } from '@/components/page-header';
 import { ProfileForm } from '@/components/profile-form';
 import { requireUser } from '@/lib/session';
 
@@ -15,13 +16,10 @@ export default async function ProfilePage() {
   const missingAgency = !profile?.agency_name;
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6">
-        <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">My Profile</p>
-        <h1 className="font-display text-2xl font-semibold sm:text-3xl">{profile?.full_name || 'Your account'}</h1>
-      </div>
+    <div className="mx-auto max-w-6xl">
+      <PageHeader eyebrow="My Profile" title={profile?.full_name || 'Your account'} description={user.email} />
       {missingAgency && (
-        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="mb-6 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Please add your agency or business name to complete your profile.
         </p>
       )}

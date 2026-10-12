@@ -3,7 +3,10 @@ import Link from 'next/link';
 import { ContentCard } from '@/components/content-card';
 import { EmptyState } from '@/components/empty-state';
 import { GenerateDraftButton } from '@/components/generate-draft-button';
+import { InfoIcon } from '@/components/icons';
+import { PageHeader } from '@/components/page-header';
 import { QuotaMeter } from '@/components/quota-meter';
+import { env } from '@/lib/env';
 import { effectiveUsage } from '@/lib/quota';
 import { getActiveBusiness, listBusinesses, requireUser } from '@/lib/session';
 import type { ContentWithBusiness } from '@/lib/types';
@@ -48,30 +51,36 @@ export default async function ApprovalHubPage({ searchParams }: { searchParams: 
   const activeOpen = items.filter((i) => i.business_id === active.id).length;
   const activeUsage = effectiveUsage(active);
   const canGenerate = activeUsage.used + activeOpen < activeUsage.max;
+  const practiceMode = env.textProvider() === 'mock' && env.imageProvider() === 'mock';
+
+  const tab = (on: boolean) =>
+    `rounded-lg px-3.5 py-1.5 transition-colors ${on ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-900'}`;
 
   return (
-    <div className="mx-auto max-w-7xl">
-      {/* Page header: stacks on mobile, row on sm+ */}
-      <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">Content Approval Hub</p>
-          <h1 className="font-display text-2xl font-semibold sm:text-3xl">
-            {showAll ? 'All clients' : active.business_name}
-          </h1>
-          <div className="mt-3 inline-flex rounded-lg bg-ink-100 p-1 text-xs font-medium">
-            <Link href="/dashboard" className={`rounded-md px-3 py-1 ${!showAll ? 'bg-white shadow-sm' : 'text-ink-500'}`}>
-              This client
-            </Link>
-            <Link href="/dashboard?scope=all" className={`rounded-md px-3 py-1 ${showAll ? 'bg-white shadow-sm' : 'text-ink-500'}`}>
-              All clients
-            </Link>
+    <div>
+      <PageHeader
+        eyebrow="Approval Hub"
+        title={showAll ? 'All clients' : active.business_name}
+        description={
+          <div className="mt-1 inline-flex rounded-xl bg-ink-100 p-1 text-sm font-medium">
+            <Link href="/dashboard" className={tab(!showAll)}>This client</Link>
+            <Link href="/dashboard?scope=all" className={tab(showAll)}>All clients</Link>
           </div>
+        }
+      >
+        <QuotaMeter business={active} openDrafts={activeOpen} />
+        <GenerateDraftButton businessId={active.id} disabled={!canGenerate} />
+      </PageHeader>
+
+      {practiceMode && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-sky-200/70 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <InfoIcon className="mt-0.5 size-[18px] shrink-0 text-sky-600" />
+          <p>
+            <strong className="font-semibold">Practice mode.</strong> Captions use a template and pictures are random sample photos
+            until an OpenAI API key is added. Nothing is posted to Instagram or Google.
+          </p>
         </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <QuotaMeter business={active} openDrafts={activeOpen} />
-          <GenerateDraftButton businessId={active.id} disabled={!canGenerate} />
-        </div>
-      </div>
+      )}
 
       {items.length === 0 ? (
         <EmptyState
@@ -79,10 +88,15 @@ export default async function ApprovalHubPage({ searchParams }: { searchParams: 
           body={`Generate a draft for ${active.business_name}, or turn on auto-generate in Client Settings.`}
         />
       ) : (
-        // 1 col → 2 cols (sm) → 3 cols (xl) → 4 cols (2xl wide laptops / monitors)
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        // 1 col → 2 cols (md) → 3 cols (xl) → 4 cols (very wide screens)
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4">
           {items.map((item) => (
-            <ContentCard key={item.id} item={item} quotaFull={quotaFullById.get(item.business_id) ?? false} />
+            <ContentCard
+              key={item.id}
+              item={item}
+              quotaFull={quotaFullById.get(item.business_id) ?? false}
+              showBusiness={showAll}
+            />
           ))}
         </div>
       )}

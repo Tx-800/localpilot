@@ -103,7 +103,6 @@ function generateMock(b: CopyBrief, plan: GenerationPlan): GeneratedCopy {
   const caption = [
     pick(MOCK_OPENERS)(b, plan),
     '',
-    `[Practice mode · format: ${plan.format}]`,
     `Here in ${b.target_location}, we put everything into being your go-to ${b.niche.toLowerCase()}.` +
       (kw.length ? ` Looking for ${kw.join(' or ')}? You're in the right place.` : ''),
     pick(MOCK_CTAS),

@@ -12,15 +12,15 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
   const pending = signingIn || signingUp;
 
   return (
-    <div className="card p-6">
+    <div>
       {allowSignup && (
-        <div className="mb-5 grid grid-cols-2 rounded-lg bg-ink-100 p-1 text-sm">
+        <div className="mb-6 grid grid-cols-2 rounded-xl bg-ink-100 p-1 text-sm">
           {(['signin', 'signup'] as const).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`rounded-md py-1.5 font-medium transition ${
+              className={`rounded-lg py-2 font-semibold transition ${
                 mode === m ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500'
               }`}
             >
@@ -64,7 +64,7 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
         {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
         {state?.message && <p className="text-sm text-green-700">{state.message}</p>}
 
-        <button type="submit" disabled={pending} className="btn-primary w-full">
+        <button type="submit" disabled={pending} className="btn-primary h-11 w-full">
           {pending ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
         </button>
       </form>

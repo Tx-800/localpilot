@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getCredentialStatus } from '@/actions/business';
 import { BusinessSettingsForm } from '@/components/business-settings-form';
 import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
 import { QuotaMeter } from '@/components/quota-meter';
 import { getActiveBusiness } from '@/lib/session';
 
@@ -24,16 +25,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const credentialStatus = await getCredentialStatus(business.id);
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">Client Settings</p>
-          <h1 className="font-display text-2xl font-semibold sm:text-3xl">{business.business_name}</h1>
-        </div>
+    <div className="mx-auto max-w-6xl">
+      <PageHeader eyebrow="Client Settings" title={business.business_name} description={business.niche + ' · ' + business.target_location}>
         <QuotaMeter business={business} />
-      </div>
+      </PageHeader>
       {created && (
-        <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="mb-6 rounded-2xl border border-emerald-200/70 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Client created and set as active. Head to the Approval Hub to generate the first draft.
         </p>
       )}

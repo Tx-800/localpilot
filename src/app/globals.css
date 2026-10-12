@@ -9,17 +9,25 @@
 
   --color-brand-50: #fff7ed;
   --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
   --color-brand-500: #f97316;
   --color-brand-600: #ea580c;
   --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
 
   --color-ink-50: #f8f7f4;
   --color-ink-100: #efede7;
-  --color-ink-200: #dedad0;
+  --color-ink-200: #e3e0d8;
+  --color-ink-300: #cbc6ba;
   --color-ink-400: #9a958a;
   --color-ink-500: #6f6a60;
+  --color-ink-600: #524e46;
   --color-ink-700: #3a3730;
+  --color-ink-800: #26241f;
   --color-ink-900: #1b1a17;
+
+  --shadow-card: 0 1px 2px rgba(27, 26, 23, 0.04), 0 2px 8px -2px rgba(27, 26, 23, 0.06);
+  --shadow-lift: 0 1px 2px rgba(27, 26, 23, 0.05), 0 12px 32px -8px rgba(27, 26, 23, 0.14);
 }
 
 @layer base {
@@ -29,30 +37,46 @@
   body {
     @apply bg-ink-50 text-ink-900 antialiased;
   }
+  ::selection {
+    @apply bg-brand-100 text-brand-800;
+  }
 }
 
 /* Reusable component utilities (v4: custom classes are declared with @utility) */
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition
-    disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2
-    focus-visible:outline-brand-500;
+  @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold whitespace-nowrap
+    transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2
+    focus-visible:outline-offset-2 focus-visible:outline-brand-500;
 }
 @utility btn-primary {
-  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  @apply btn bg-brand-600 text-white shadow-[0_1px_2px_rgba(154,52,18,0.3)] hover:bg-brand-700;
 }
 @utility btn-secondary {
-  @apply btn border border-ink-200 bg-white text-ink-700 hover:bg-ink-100;
+  @apply btn border border-ink-200 bg-white text-ink-800 shadow-[0_1px_2px_rgba(27,26,23,0.04)] hover:border-ink-300 hover:bg-ink-50;
 }
 @utility btn-ghost {
-  @apply btn text-ink-500 hover:bg-ink-100 hover:text-ink-900;
+  @apply btn font-medium text-ink-500 hover:bg-ink-100 hover:text-ink-900;
+}
+@utility btn-danger {
+  @apply btn font-medium text-ink-500 hover:bg-red-50 hover:text-red-700;
 }
 @utility input {
-  @apply w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400
-    focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none;
+  @apply w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900 shadow-[0_1px_2px_rgba(27,26,23,0.03)]
+    transition-colors placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100
+    focus:outline-none disabled:bg-ink-50 disabled:text-ink-500;
 }
 @utility label {
-  @apply mb-1.5 block text-xs font-semibold tracking-wide text-ink-500 uppercase;
+  @apply mb-1.5 block text-sm font-medium text-ink-700;
+}
+@utility hint {
+  @apply mt-1.5 text-xs leading-relaxed text-ink-500;
 }
 @utility card {
-  @apply rounded-2xl border border-ink-200 bg-white shadow-[0_1px_2px_rgba(27,26,23,0.04)];
+  @apply rounded-2xl border border-ink-200/80 bg-white shadow-card;
+}
+@utility eyebrow {
+  @apply text-xs font-semibold tracking-wider text-brand-700 uppercase;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full bg-ink-100 px-2.5 py-0.5 text-xs font-medium text-ink-600;
 }
