@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from 'react';
 import { disconnectGoogle, saveBusinessProfile, type BusinessFormState, type CredentialStatus } from '@/actions/business';
 import type { BusinessProfile } from '@/lib/types';
+import { GoogleLocationPicker } from './google-location-picker';
 
 const VOICES = [
   'Warm, friendly and local',
@@ -25,6 +26,11 @@ export function BusinessSettingsForm({
   const fe: Record<string, string> = (state && !state.ok && state.fieldErrors) || {};
   const [disconnecting, startDisconnect] = useTransition();
   const [disconnectMsg, setDisconnectMsg] = useState<string | null>(null);
+  const googleSource: 'client' | 'agency' | null = credentialStatus?.googleConnected
+    ? 'client'
+    : credentialStatus?.agencyGoogle.connected
+      ? 'agency'
+      : null;
 
   return (
     <form action={action} className="space-y-8 lg:space-y-10">
@@ -94,58 +100,86 @@ export function BusinessSettingsForm({
           </Field>
         </div>
 
-        {/* Google Business Profile: OAuth connection (refresh token) + location */}
+        {/* Google Business Profile: which Google account is used + which locations */}
         <div className="mt-6 border-t border-ink-100 pt-6">
           <div className="flex flex-col gap-3 rounded-xl border border-ink-200/80 bg-ink-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className={`mt-1 size-2.5 shrink-0 rounded-full ${credentialStatus?.googleConnected ? 'bg-emerald-500' : 'bg-ink-300'}`} />
+              <span className={`mt-1 size-2.5 shrink-0 rounded-full ${googleSource ? 'bg-emerald-500' : 'bg-ink-300'}`} />
               <div>
                 <p className="text-sm font-semibold text-ink-900">
-                  Google Business {credentialStatus?.googleConnected ? 'connected' : 'not connected'}
+                  {googleSource === 'client'
+                    ? 'Google: this client’s own account'
+                    : googleSource === 'agency'
+                      ? 'Google: your agency account'
+                      : 'Google not connected'}
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-ink-500">
-                  {!googleOAuthEnabled
-                    ? 'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server to enable “Connect Google”.'
-                    : !business
-                      ? 'Create the client first, then connect its Google account.'
-                      : credentialStatus?.googleConnected
-                        ? 'Posting gets a fresh access token automatically — no expiry to worry about.'
-                        : 'Sign in with the Google account that manages this business. You only do this once.'}
+                  {googleSource === 'client'
+                    ? 'Posts use the Google account connected below under Advanced.'
+                    : googleSource === 'agency'
+                      ? `Using ${credentialStatus?.agencyGoogle.email ?? 'the Google account'} connected on My Profile. Pick this client’s locations below.`
+                      : !googleOAuthEnabled
+                        ? 'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server to enable Google.'
+                        : 'Connect your agency’s Google account once on My Profile — it works for every client.'}
                 </p>
               </div>
             </div>
-            {googleOAuthEnabled && business && (
-              <div className="flex shrink-0 gap-2">
-                {credentialStatus?.googleConnected && (
-                  <button
-                    type="button"
-                    onClick={() => startDisconnect(async () => setDisconnectMsg((await disconnectGoogle(business.id)).ok ? 'Disconnected' : 'Could not disconnect'))}
-                    disabled={disconnecting}
-                    className="btn-ghost"
-                  >
-                    {disconnecting ? 'Disconnecting…' : 'Disconnect'}
-                  </button>
-                )}
-                <a href={`/api/google/connect?businessId=${business.id}`} className={credentialStatus?.googleConnected ? 'btn-secondary' : 'btn-primary'}>
-                  {credentialStatus?.googleConnected ? 'Reconnect' : 'Connect Google'}
-                </a>
-              </div>
+            {googleOAuthEnabled && !googleSource && (
+              <a href="/dashboard/profile#google" className="btn-primary shrink-0">
+                Go to My Profile
+              </a>
             )}
           </div>
-          {disconnectMsg && <p className="hint">{disconnectMsg}</p>}
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <Field label="Google Business location" name="google_gbp_location_id" error={fe.google_gbp_location_id} hint="Format: accounts/123/locations/456">
-              <input id="google_gbp_location_id" name="google_gbp_location_id" defaultValue={business?.google_gbp_location_id ?? ''} className="input font-mono text-xs" placeholder="accounts/123/locations/456" />
-            </Field>
-            <Field
-              label="Google access token (advanced)"
-              name="google_gbp_token"
-              hint={credentialStatus?.google ? '● Token saved — only used when Google is not connected; expires after 1 hour' : 'Optional fallback. Expires after 1 hour — prefer Connect Google.'}
-            >
-              <input id="google_gbp_token" name="google_gbp_token" type="password" autoComplete="off" className="input font-mono text-xs" placeholder={credentialStatus?.google ? '••••••••' : 'ya29…'} />
-            </Field>
+          <div className="mt-5">
+            <GoogleLocationPicker
+              businessId={business?.id}
+              initial={
+                business?.google_locations?.length
+                  ? business.google_locations
+                  : business?.google_gbp_location_id
+                    ? [{ name: business.google_gbp_location_id, title: business.google_gbp_location_id }]
+                    : []
+              }
+              canLoad={!!googleSource && googleOAuthEnabled}
+              error={fe.google_locations}
+            />
           </div>
+
+          <details className="mt-5 rounded-xl border border-ink-200/80 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-ink-600 hover:text-ink-900">
+              Advanced: use a different Google account for this client
+            </summary>
+            <div className="mt-4 space-y-4">
+              {googleOAuthEnabled && business ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <a href={`/api/google/connect?businessId=${business.id}`} className="btn-secondary">
+                    {credentialStatus?.googleConnected ? 'Reconnect client’s Google' : 'Connect client’s own Google'}
+                  </a>
+                  {credentialStatus?.googleConnected && (
+                    <button
+                      type="button"
+                      onClick={() => startDisconnect(async () => setDisconnectMsg((await disconnectGoogle(business.id)).ok ? 'Disconnected — the agency account is used again' : 'Could not disconnect'))}
+                      disabled={disconnecting}
+                      className="btn-ghost"
+                    >
+                      {disconnecting ? 'Disconnecting…' : 'Disconnect client’s Google'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-ink-500">{business ? 'Google sign-in is not configured on the server.' : 'Save the client first.'}</p>
+              )}
+              {disconnectMsg && <p className="hint">{disconnectMsg}</p>}
+              <Field
+                label="Google access token (fallback)"
+                name="google_gbp_token"
+                hint={credentialStatus?.google ? '● Token saved — only used when no Google account is connected; expires after 1 hour' : 'Rarely needed. Expires after 1 hour.'}
+              >
+                <input id="google_gbp_token" name="google_gbp_token" type="password" autoComplete="off" className="input font-mono text-xs" placeholder={credentialStatus?.google ? '••••••••' : 'ya29…'} />
+              </Field>
+            </div>
+          </details>
         </div>
       </Section>
 

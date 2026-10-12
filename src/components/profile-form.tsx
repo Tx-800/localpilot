@@ -1,17 +1,22 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { changePassword, updateProfile } from '@/actions/auth';
+import { disconnectAgencyGoogle } from '@/actions/business';
 
 export function ProfileForm({
   email,
   fullName,
   agencyName,
+  google,
 }: {
   email: string;
   fullName: string;
   agencyName: string;
+  google: { enabled: boolean; connected: boolean; email: string | null };
 }) {
+  const [disconnecting, startDisconnect] = useTransition();
+  const [googleMsg, setGoogleMsg] = useState<string | null>(null);
   const [profileState, profileAction, savingProfile] = useActionState(updateProfile, null);
   const [passwordState, passwordAction, savingPassword] = useActionState(changePassword, null);
 
@@ -41,6 +46,50 @@ export function ProfileForm({
           </Footer>
         </form>
       </Section>
+
+      <div id="google" className="scroll-mt-8">
+        <Section
+          title="Google Business"
+          hint="Connect the Google account that manages your clients’ Business Profiles (as owner or manager). Every client uses it — you then pick each client’s locations in Client Settings."
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${google.connected ? 'bg-emerald-500' : 'bg-ink-300'}`} />
+              <div>
+                <p className="text-sm font-semibold text-ink-900">{google.connected ? 'Connected' : 'Not connected'}</p>
+                <p className="mt-0.5 text-sm text-ink-500">
+                  {google.connected
+                    ? google.email ?? 'Google account connected'
+                    : google.enabled
+                      ? 'You only need to do this once.'
+                      : 'Google sign-in is not configured on the server (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).'}
+                </p>
+              </div>
+            </div>
+            {google.enabled && (
+              <div className="flex shrink-0 gap-2">
+                {google.connected && (
+                  <button
+                    type="button"
+                    disabled={disconnecting}
+                    onClick={() => {
+                      if (!confirm('Disconnect Google? Clients without their own Google connection will stop posting to Google.')) return;
+                      startDisconnect(async () => setGoogleMsg((await disconnectAgencyGoogle()).ok ? 'Disconnected' : 'Could not disconnect'));
+                    }}
+                    className="btn-ghost"
+                  >
+                    {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+                  </button>
+                )}
+                <a href="/api/google/connect?target=agency" className={google.connected ? 'btn-secondary' : 'btn-primary'}>
+                  {google.connected ? 'Switch account' : 'Connect Google'}
+                </a>
+              </div>
+            )}
+          </div>
+          {googleMsg && <p className="hint">{googleMsg}</p>}
+        </Section>
+      </div>
 
       <Section title="Password" hint="Use at least 8 characters. You stay signed in after changing it.">
         <form action={passwordAction}>

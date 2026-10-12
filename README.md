@@ -99,16 +99,22 @@ Each draft card has **Instagram** and **Google** tabs:
 * **✨ Rewrite** — AI writes new text for both channels, keeping the topic and the image.
 * **Upload** — use your own photo; the browser converts it to JPEG (Instagram requires JPEG) before upload. **New image** generates another AI image from the (editable) image prompt.
 
-### Google Business: "Connect Google"
+### Google Business: one Google account, many clients and locations
 
-Google access tokens expire after an hour, so posting uses a stored **refresh token** instead:
+Google access tokens expire after an hour, so LocalPilot stores a **refresh token** and mints a fresh access token per post.
 
-1. Google Cloud Console → APIs & Services → Credentials → **Create OAuth client ID** (type *Web application*).
-2. Authorised redirect URI: `https://YOUR-SITE/api/google/callback` (plus `http://localhost:3000/api/google/callback` for local dev).
-3. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (Vercel env vars), redeploy.
-4. Client Settings → **Connect Google**, sign in with the account that manages the business, and fill in the **Google Business location** (`accounts/…/locations/…`).
+**Setup (once):**
 
-The Business Profile API must be approved for your Google Cloud project. A pasted access token is still accepted as a fallback.
+1. Google Cloud Console → request Business Profile API access for the project; enable *My Business Account Management*, *My Business Business Information* and *Google My Business* APIs.
+2. APIs & Services → Credentials → **Create OAuth client ID** (type *Web application*). Authorised redirect URI: `https://YOUR-SITE/api/google/callback` (plus `http://localhost:3000/api/google/callback` for local dev).
+3. OAuth consent screen → publish to **In production** (in *Testing*, tokens expire after 7 days).
+4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in Vercel and redeploy.
+
+**Daily use:**
+
+* **My Profile → Connect Google** — sign in once with the Google account that owns or manages your clients' Business Profiles.
+* **Client Settings → Choose from Google** — LocalPilot lists every location that account manages; tick this client's location(s). One approved post goes to every ticked location and counts as one post.
+* **Advanced** — a client can instead connect its own Google account, or locations can be added by ID (`accounts/…/locations/…`).
 
 ## 3. How quota is enforced (and why it's in SQL)
 

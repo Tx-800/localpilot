@@ -1,10 +1,10 @@
 import 'server-only';
 import { env } from '@/lib/env';
-import type { BusinessCredentials, BusinessProfile, ContentItem } from '@/lib/types';
+import type { BusinessCredentials, BusinessProfile, ContentItem, GoogleLocation } from '@/lib/types';
 import { publishToInstagram } from './meta';
 import { publishToGoogleBusiness } from './google';
 import { composeGoogleText, composeInstagramCaption } from '@/lib/captions';
-import { googleAccessToken } from '@/lib/google-oauth';
+import { googleAccessTokenForBusiness, hasGoogleAccess } from '@/lib/google-oauth';
 
 export interface PublishOutcome {
   anySuccess: boolean;
@@ -49,26 +49,34 @@ export async function publishToChannels(
     });
   }
 
-  if (business.google_gbp_location_id && (creds?.google_refresh_token || creds?.google_gbp_token)) {
-    jobs.push({
-      channel: 'google_business',
-      run: () =>
-        googleAccessToken(creds).then((accessToken) =>
-          publishToGoogleBusiness({
-            locationName: business.google_gbp_location_id!,
-            accessToken,
-            imageUrl,
-            caption: googleText,
-          }),
-        ),
-    });
+  // Every picked location (legacy single ID as fallback); one access token shared by all of them.
+  const locations: GoogleLocation[] = business.google_locations?.length
+    ? business.google_locations
+    : business.google_gbp_location_id
+      ? [{ name: business.google_gbp_location_id, title: 'Google Business' }]
+      : [];
+  if (locations.length && (await hasGoogleAccess(creds, business.agency_user_id))) {
+    let token: Promise<string> | null = null;
+    const accessToken = () => (token ??= googleAccessTokenForBusiness(creds, business.agency_user_id));
+    for (const loc of locations) {
+      jobs.push({
+        channel: locations.length > 1 ? `google_business:${loc.title}` : 'google_business',
+        run: () =>
+          accessToken()
+            .then((t) => publishToGoogleBusiness({ locationName: loc.name, accessToken: t, imageUrl, caption: googleText }))
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              throw new Error(locations.length > 1 ? `${msg} (${loc.title})` : msg);
+            }),
+      });
+    }
   }
 
   if (jobs.length === 0) {
     return {
       anySuccess: false,
       externalIds: {},
-      errors: ['No channels connected. Add an Instagram or Google Business ID and token in Client Settings.'],
+      errors: ['No channels connected. Connect Google on My Profile and pick locations, or add Instagram details, in Client Settings.'],
     };
   }
 

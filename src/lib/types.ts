@@ -18,8 +18,17 @@ export interface BusinessProfile {
   auto_generate_enabled: boolean;
   instagram_page_id: string | null;
   google_gbp_location_id: string | null;
+  google_locations: GoogleLocation[];
   created_at: string;
   updated_at: string;
+}
+
+/** A Google Business Profile location a client posts to. */
+export interface GoogleLocation {
+  /** accounts/{accountId}/locations/{locationId} — the v4 localPosts parent. */
+  name: string;
+  title: string;
+  address?: string;
 }
 
 export interface BusinessCredentials {

@@ -83,7 +83,7 @@ export default async function PublishedPage() {
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {Object.entries(item.external_post_ids).map(([channel, id]) => (
                         <span key={channel} className="chip" title={id}>
-                          {CHANNEL_LABELS[channel] ?? channel}
+                          {channel.startsWith('google_business:') ? `Google · ${channel.slice('google_business:'.length)}` : (CHANNEL_LABELS[channel] ?? channel)}
                           <span className="font-mono text-[10px] text-ink-400">{id.slice(-8)}</span>
                         </span>
                       ))}
