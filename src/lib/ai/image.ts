@@ -21,17 +21,27 @@ export async function generateImageUrl(prompt: string, businessId: string): Prom
 
 async function generateWithOpenAI(prompt: string): Promise<ImageSource> {
   const model = env.openaiImageModel();
+  // GPT image models can return compressed JPEG: ~10x smaller than PNG, and
+  // Instagram's publishing API only accepts JPEG.
+  const jpeg = model.startsWith('gpt-image');
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.openaiKey()}`, 'Content-Type': 'application/json' },
     // Explicit quality: omitted, the API uses "auto", which can bill at high quality.
-    body: JSON.stringify({ model, prompt, size: '1024x1024', quality: env.openaiImageQuality(), n: 1 }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      size: '1024x1024',
+      quality: env.openaiImageQuality(),
+      n: 1,
+      ...(jpeg && { output_format: 'jpeg', output_compression: 85 }),
+    }),
     signal: AbortSignal.timeout(90_000),
   });
   if (!res.ok) throw await openaiError(res, 'image', model);
   const json = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
   const first = json.data?.[0];
-  if (first?.b64_json) return { kind: 'base64', data: first.b64_json, contentType: 'image/png' };
+  if (first?.b64_json) return { kind: 'base64', data: first.b64_json, contentType: jpeg ? 'image/jpeg' : 'image/png' };
   if (first?.url) return { kind: 'url', url: first.url };
   throw new AppError('PROVIDER_ERROR', 'Image provider returned no image');
 }

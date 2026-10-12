@@ -86,6 +86,8 @@ export function ContentCard({ item, quotaFull }: { item: ContentWithBusiness; qu
           <img
             src={imageUrl}
             alt={imagePrompt || 'AI generated image preview'}
+            loading="lazy"
+            decoding="async"
             ref={(el) => {
               if (el?.complete && el.naturalWidth > 0) setImgLoaded(true); // cached before hydration
             }}

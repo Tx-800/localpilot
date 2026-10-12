@@ -13,13 +13,16 @@ export default async function PublishedPage() {
 
   const { data, error } = await supabase
     .from('content_queue')
-    .select('*')
+    .select('id, generated_image_url, generated_caption, review_status, published_status, published_at, external_post_ids')
     .eq('business_id', business.id)
     .in('published_status', ['published', 'processing'])
     .order('published_at', { ascending: false, nullsFirst: true })
     .limit(100);
   if (error) throw new Error(error.message);
-  const items = (data ?? []) as ContentItem[];
+  const items = (data ?? []) as Pick<
+    ContentItem,
+    'id' | 'generated_image_url' | 'generated_caption' | 'review_status' | 'published_status' | 'published_at' | 'external_post_ids'
+  >[];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -36,7 +39,7 @@ export default async function PublishedPage() {
             <li key={item.id} className="flex gap-4 p-4">
               {item.generated_image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.generated_image_url} alt="" className="size-16 shrink-0 rounded-lg object-cover sm:size-20" />
+                <img src={item.generated_image_url} alt="" loading="lazy" decoding="async" className="size-16 shrink-0 rounded-lg object-cover sm:size-20" />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
