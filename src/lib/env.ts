@@ -8,6 +8,8 @@ function required(name: string): string {
 
 const IMAGE_QUALITIES = ['low', 'medium', 'high'] as const;
 type ImageQuality = (typeof IMAGE_QUALITIES)[number];
+const REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high'] as const;
+type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
 export const env = {
   supabaseUrl: () => required('NEXT_PUBLIC_SUPABASE_URL'),
@@ -23,6 +25,11 @@ export const env = {
   openaiImageQuality: (): ImageQuality => {
     const q = process.env.OPENAI_IMAGE_QUALITY?.trim().toLowerCase();
     return IMAGE_QUALITIES.includes(q as ImageQuality) ? (q as ImageQuality) : 'medium';
+  },
+  /** Caption reasoning depth; hidden reasoning tokens bill as output, and captions need little. */
+  openaiReasoningEffort: (): ReasoningEffort => {
+    const e = process.env.OPENAI_REASONING_EFFORT?.trim().toLowerCase();
+    return REASONING_EFFORTS.includes(e as ReasoningEffort) ? (e as ReasoningEffort) : 'low';
   },
   /** Optional: only sent when set, since GPT-5-family models reject a custom temperature. */
   openaiTextTemperature: (): number | undefined => {

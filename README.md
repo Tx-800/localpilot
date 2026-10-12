@@ -84,6 +84,7 @@ Going live, one switch at a time:
 * Captions cost a fraction of a cent each (`gpt-5-mini` by default).
 * Images cost about $0.005–0.036 each on `gpt-image-1-mini`, and about $0.009–0.133 on `gpt-image-1.5`, from low to high quality.
 * `OPENAI_IMAGE_QUALITY=medium` is the recommended default. "Regenerate Image" bills another image.
+* `OPENAI_REASONING_EFFORT=low` (default) keeps caption cost down: GPT-5-family models bill their hidden reasoning as output tokens, and captions need little. Models that don't accept it are retried once without it.
 
 Supabase Auth → URL configuration: add `http://localhost:3000/auth/callback` (and your production URL) to redirect URLs.
 

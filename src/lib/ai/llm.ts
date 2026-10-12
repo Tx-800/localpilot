@@ -22,24 +22,34 @@ export async function generateCopy(
 async function generateWithOpenAI(brief: CopyBrief, plan: GenerationPlan, opts: { retry?: boolean }): Promise<GeneratedCopy> {
   const model = env.openaiTextModel();
   const temperature = env.openaiTextTemperature();
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.openaiKey()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      // GPT-5-family models reject a custom temperature, so it is opt-in.
-      ...(temperature !== undefined && { temperature }),
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: COPY_SYSTEM_PROMPT },
-        { role: 'user', content: buildCopyUserPrompt(brief, plan, opts) },
-      ],
-    }),
-    signal: AbortSignal.timeout(60_000), // reasoning models think before answering
-  });
+  const effort = env.openaiReasoningEffort();
+
+  const request = (withEffort: boolean) =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.openaiKey()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        // GPT-5-family models reject a custom temperature, so it is opt-in.
+        ...(temperature !== undefined && { temperature }),
+        ...(withEffort && { reasoning_effort: effort }),
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: COPY_SYSTEM_PROMPT },
+          { role: 'user', content: buildCopyUserPrompt(brief, plan, opts) },
+        ],
+      }),
+      signal: AbortSignal.timeout(60_000), // reasoning models think before answering
+    });
+
+  let res = await request(true);
+  if (res.status === 400 && (await rejectsReasoningEffort(res.clone()))) {
+    console.warn(`[openai] ${model} rejected reasoning_effort="${effort}"; retrying without it`);
+    res = await request(false);
+  }
 
   if (!res.ok) throw await openaiError(res, 'text', model);
 
@@ -58,6 +68,16 @@ async function generateWithOpenAI(brief: CopyBrief, plan: GenerationPlan, opts: 
   if (!caption || !imagePrompt) throw new AppError('PROVIDER_ERROR', 'Text model returned an incomplete draft');
 
   return { caption: caption.slice(0, 2200), imagePrompt };
+}
+
+/** True when a 400 is about reasoning_effort itself (unsupported parameter, or e.g. "minimal" not allowed). */
+async function rejectsReasoningEffort(res: Response): Promise<boolean> {
+  try {
+    const { error } = (await res.json()) as { error?: { param?: string | null; message?: string } };
+    return error?.param === 'reasoning_effort' || !!error?.message?.includes('reasoning_effort');
+  } catch {
+    return false;
+  }
 }
 
 // Practice-mode copy: no AI, but still follows the plan so drafts visibly rotate.
