@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import { signIn, signUp } from '@/actions/auth';
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, allowSignup }: { next: string; allowSignup: boolean }) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [signInState, signInAction, signingIn] = useActionState(signIn, null);
   const [signUpState, signUpAction, signingUp] = useActionState(signUp, null);
@@ -13,28 +13,36 @@ export function LoginForm({ next }: { next: string }) {
 
   return (
     <div className="card p-6">
-      <div className="mb-5 grid grid-cols-2 rounded-lg bg-ink-100 p-1 text-sm">
-        {(['signin', 'signup'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={`rounded-md py-1.5 font-medium transition ${
-              mode === m ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500'
-            }`}
-          >
-            {m === 'signin' ? 'Sign in' : 'Create account'}
-          </button>
-        ))}
-      </div>
+      {allowSignup && (
+        <div className="mb-5 grid grid-cols-2 rounded-lg bg-ink-100 p-1 text-sm">
+          {(['signin', 'signup'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`rounded-md py-1.5 font-medium transition ${
+                mode === m ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500'
+              }`}
+            >
+              {m === 'signin' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form action={mode === 'signin' ? signInAction : signUpAction} className="space-y-4">
         <input type="hidden" name="next" value={next} />
         {mode === 'signup' && (
-          <div>
-            <label className="label" htmlFor="full_name">Your name</label>
-            <input id="full_name" name="full_name" className="input" autoComplete="name" />
-          </div>
+          <>
+            <div>
+              <label className="label" htmlFor="full_name">Your name</label>
+              <input id="full_name" name="full_name" required maxLength={120} className="input" autoComplete="name" />
+            </div>
+            <div>
+              <label className="label" htmlFor="agency_name">Agency / business name</label>
+              <input id="agency_name" name="agency_name" required maxLength={120} className="input" autoComplete="organization" placeholder="e.g. Powai Digital Studio" />
+            </div>
+          </>
         )}
         <div>
           <label className="label" htmlFor="email">Email</label>

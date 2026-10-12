@@ -41,6 +41,9 @@ export const env = {
   replicateToken: () => required('REPLICATE_API_TOKEN'),
   fluxModel: () => process.env.FLUX_MODEL ?? 'black-forest-labs/flux-schnell',
 
+  /** Set ALLOW_SIGNUP=false to hide and refuse self sign-up (pair with Supabase's "Allow new users to sign up" off). */
+  allowSignup: () => process.env.ALLOW_SIGNUP?.trim().toLowerCase() !== 'false',
+
   publishMode: () => (process.env.PUBLISH_MODE ?? 'mock') as 'mock' | 'live',
   metaGraphVersion: () => process.env.META_GRAPH_VERSION ?? 'v21.0',
 };

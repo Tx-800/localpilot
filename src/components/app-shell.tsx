@@ -12,6 +12,7 @@ const NAV = [
   { href: '/dashboard/published', label: 'Published', icon: '✓' },
   { href: '/dashboard/settings', label: 'Client Settings', icon: '⚙' },
   { href: '/dashboard/businesses/new', label: 'Add Client', icon: '+' },
+  { href: '/dashboard/profile', label: 'My Profile', icon: '☺' },
 ];
 
 type ShellBusiness = Pick<BusinessProfile, 'id' | 'business_name' | 'niche'>;

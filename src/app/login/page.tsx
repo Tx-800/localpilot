@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { env } from '@/lib/env';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Sign in' };
@@ -22,7 +23,7 @@ export default async function LoginPage({
             That confirmation link didn&apos;t work. Try signing in.
           </p>
         )}
-        <LoginForm next={next ?? '/dashboard'} />
+        <LoginForm next={next ?? '/dashboard'} allowSignup={env.allowSignup()} />
       </div>
     </main>
   );
