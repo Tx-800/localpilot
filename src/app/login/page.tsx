@@ -5,6 +5,18 @@ import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
+const NOTICES: Record<string, { ok: boolean; text: string }> = {
+  verified: { ok: true, text: 'Your email is verified. Sign in to continue.' },
+  link_expired: {
+    ok: false,
+    text: 'That confirmation link has expired or was already used. Try signing in — if your email isn’t confirmed yet, you can resend the link.',
+  },
+  link_invalid: {
+    ok: false,
+    text: 'That link didn’t work. Try signing in — if your email isn’t confirmed yet, you can resend the link.',
+  },
+};
+
 const POINTS = [
   'On-brand captions and images for every client',
   'Every post is different — topics and styles rotate automatically',
@@ -14,9 +26,10 @@ const POINTS = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; notice?: string }>;
 }) {
-  const { next, error } = await searchParams;
+  const { next, error, notice } = await searchParams;
+  const banner = NOTICES[notice ?? (error ? 'link_invalid' : '')];
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       {/* Brand panel (desktop) */}
@@ -51,9 +64,14 @@ export default async function LoginPage({
           </div>
           <h1 className="font-display text-3xl font-semibold tracking-tight">Welcome back</h1>
           <p className="mt-1.5 mb-8 text-sm text-ink-500">Sign in to manage your clients’ posts.</p>
-          {error && (
-            <p className="mb-5 rounded-xl border border-red-200/70 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-              That confirmation link didn&apos;t work. Try signing in.
+          {banner && (
+            <p
+              role="status"
+              className={`mb-5 rounded-xl border px-3.5 py-2.5 text-sm ${
+                banner.ok ? 'border-emerald-200/70 bg-emerald-50 text-emerald-800' : 'border-amber-200/70 bg-amber-50 text-amber-900'
+              }`}
+            >
+              {banner.text}
             </p>
           )}
           <LoginForm next={next ?? '/dashboard'} allowSignup={env.allowSignup()} />

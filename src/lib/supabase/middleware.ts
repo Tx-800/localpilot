@@ -23,10 +23,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refreshes the auth token if needed. Do not remove.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refreshes the auth token if needed, then verifies it locally (ES256 JWKS, cached)
+  // instead of calling the Auth server on every request. Do not remove.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? data.claims : null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
@@ -35,6 +35,13 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', path);
+    return NextResponse.redirect(url);
+  }
+
+  if (user && path === '/login') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

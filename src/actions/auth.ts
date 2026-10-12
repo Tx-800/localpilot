@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { env } from '@/lib/env';
 
-export type AuthState = { error?: string; message?: string } | null;
+export type AuthState = { error?: string; message?: string; unconfirmedEmail?: string } | null;
 
 function safeNext(next: FormDataEntryValue | null) {
   const n = String(next ?? '');
@@ -15,12 +15,33 @@ function safeNext(next: FormDataEntryValue | null) {
 
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const supabase = await createClient();
+  const email = String(formData.get('email') ?? '').trim();
   const { error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get('email') ?? ''),
+    email,
     password: String(formData.get('password') ?? ''),
   });
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === 'email_not_confirmed') {
+      return { error: 'Please confirm your email first — check your inbox (and spam).', unconfirmedEmail: email };
+    }
+    if (error.code === 'invalid_credentials') return { error: 'Wrong email or password.' };
+    return { error: error.message };
+  }
   redirect(safeNext(formData.get('next')));
+}
+
+/** Send the sign-up confirmation email again. */
+export async function resendConfirmation(email: string): Promise<AuthState> {
+  if (!email) return { error: 'Enter your email first.' };
+  const supabase = await createClient();
+  const origin = (await headers()).get('origin') ?? '';
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: `${origin}/auth/callback` },
+  });
+  if (error) return { error: error.message, unconfirmedEmail: email };
+  return { message: `Confirmation email sent to ${email}. Open the link, then sign in.` };
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -49,7 +70,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   });
   if (error) return { error: error.message };
   if (data.session) redirect('/dashboard'); // email confirmation disabled
-  return { message: 'Check your inbox to confirm your email, then sign in.' };
+  return { message: `We sent a confirmation link to ${email}. Open it on any device, then sign in here.` };
 }
 
 export type ProfileState = { error?: string; message?: string } | null;

@@ -7,14 +7,18 @@ import type { BusinessProfile } from '@/lib/types';
 
 export const ACTIVE_BUSINESS_COOKIE = 'active_business_id';
 
-/** Signed-in user + session client, or redirect to /login. Cached per request. */
+/**
+ * Signed-in user + session client, or redirect to /login. Cached per request.
+ * getClaims verifies the session JWT locally against the project's ES256 signing
+ * key (JWKS cached), so page loads skip a round-trip to the Auth server.
+ * Mutating actions still use getUser() for a server-side check.
+ */
 export const requireUser = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-  return { supabase, user };
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) redirect('/login');
+  return { supabase, user: { id: claims.sub, email: (claims.email as string | undefined) ?? undefined } };
 });
 
 /** All businesses this agency user owns (RLS-scoped). */
