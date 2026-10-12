@@ -2,6 +2,7 @@ import 'server-only';
 import { env } from '@/lib/env';
 import { AppError } from '@/lib/errors';
 import { persistImage, type ImageSource } from '@/lib/storage';
+import { openaiError } from './openai-errors';
 
 /**
  * Generate an image for `prompt` and return a stable, public URL.
@@ -19,16 +20,15 @@ export async function generateImageUrl(prompt: string, businessId: string): Prom
 }
 
 async function generateWithOpenAI(prompt: string): Promise<ImageSource> {
+  const model = env.openaiImageModel();
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.openaiKey()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: env.openaiImageModel(), prompt, size: '1024x1024', n: 1 }),
+    // Explicit quality: omitted, the API uses "auto", which can bill at high quality.
+    body: JSON.stringify({ model, prompt, size: '1024x1024', quality: env.openaiImageQuality(), n: 1 }),
     signal: AbortSignal.timeout(90_000),
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new AppError('PROVIDER_ERROR', `Image generation failed (${res.status}): ${body.slice(0, 200)}`);
-  }
+  if (!res.ok) throw await openaiError(res, 'image', model);
   const json = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
   const first = json.data?.[0];
   if (first?.b64_json) return { kind: 'base64', data: first.b64_json, contentType: 'image/png' };

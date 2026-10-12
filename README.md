@@ -79,6 +79,12 @@ Going live, one switch at a time:
 | `AI_IMAGE_PROVIDER=openai` or `flux` (+ `REPLICATE_API_TOKEN`) | Real images, copied into Supabase Storage |
 | `PUBLISH_MODE=live` | Real Instagram / Google posts for clients with IDs + tokens saved |
 
+**OpenAI costs** (approximate, per draft):
+
+* Captions cost a fraction of a cent each (`gpt-5-mini` by default).
+* Images cost about $0.005–0.036 each on `gpt-image-1-mini`, and about $0.009–0.133 on `gpt-image-1.5`, from low to high quality.
+* `OPENAI_IMAGE_QUALITY=medium` is the recommended default. "Regenerate Image" bills another image.
+
 Supabase Auth → URL configuration: add `http://localhost:3000/auth/callback` (and your production URL) to redirect URLs.
 
 ---

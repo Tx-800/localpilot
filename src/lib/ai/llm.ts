@@ -1,6 +1,7 @@
 import 'server-only';
 import { env } from '@/lib/env';
 import { AppError } from '@/lib/errors';
+import { openaiError } from './openai-errors';
 import { buildCopyUserPrompt, COPY_SYSTEM_PROMPT, type CopyBrief } from './prompts';
 import type { GenerationPlan } from './strategy';
 
@@ -19,6 +20,8 @@ export async function generateCopy(
 }
 
 async function generateWithOpenAI(brief: CopyBrief, plan: GenerationPlan, opts: { retry?: boolean }): Promise<GeneratedCopy> {
+  const model = env.openaiTextModel();
+  const temperature = env.openaiTextTemperature();
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -26,21 +29,19 @@ async function generateWithOpenAI(brief: CopyBrief, plan: GenerationPlan, opts: 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: env.openaiTextModel(),
-      temperature: 0.9,
+      model,
+      // GPT-5-family models reject a custom temperature, so it is opt-in.
+      ...(temperature !== undefined && { temperature }),
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: COPY_SYSTEM_PROMPT },
         { role: 'user', content: buildCopyUserPrompt(brief, plan, opts) },
       ],
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(60_000), // reasoning models think before answering
   });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new AppError('PROVIDER_ERROR', `Text generation failed (${res.status}): ${body.slice(0, 200)}`);
-  }
+  if (!res.ok) throw await openaiError(res, 'text', model);
 
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const raw = json.choices?.[0]?.message?.content ?? '';
